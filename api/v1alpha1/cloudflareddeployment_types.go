@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,11 +26,7 @@ import (
 
 // CloudflaredDeploymentSpec defines the desired state of CloudflaredDeployment
 type CloudflaredDeploymentSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of CloudflaredDeployment. Edit cloudflareddeployment_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Template appsv1.DeploymentSpec `json:"template,omitempty"`
 }
 
 // CloudflaredDeploymentStatus defines the observed state of CloudflaredDeployment
