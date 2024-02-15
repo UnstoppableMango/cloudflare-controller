@@ -1,0 +1,27 @@
+# permissions for end users to view cloudflareddeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: cloudflareddeployment-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: cloudflare-controller
+    app.kubernetes.io/part-of: cloudflare-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: cloudflareddeployment-viewer-role
+rules:
+- apiGroups:
+  - cloudflare.cloudflare.unmango.net
+  resources:
+  - cloudflareddeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cloudflare.cloudflare.unmango.net
+  resources:
+  - cloudflareddeployments/status
+  verbs:
+  - get
