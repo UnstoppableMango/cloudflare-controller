@@ -17,16 +17,18 @@ limitations under the License.
 package v1alpha1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // CloudflaredDeploymentSpec defines the desired state of CloudflaredDeployment
 type CloudflaredDeploymentSpec struct {
-	Template appsv1.DeploymentSpec `json:"template,omitempty"`
+	//+kubebuilder:validation:Enum=Deployment;DaemonSet
+	//+kubebuilder:default:=DaemonSet
+	Kind string `json:"kind,omitempty"`
+
+	// +optional
+	Template *v1.PodTemplateSpec `json:"template,omitempty"`
 }
 
 // CloudflaredDeploymentStatus defines the observed state of CloudflaredDeployment

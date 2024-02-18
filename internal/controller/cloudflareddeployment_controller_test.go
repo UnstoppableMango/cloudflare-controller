@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	cloudflarev1alpha1 "github.com/UnstoppableMango/cloudflare-controller/api/v1alpha1"
+	cfv1alpha1 "github.com/UnstoppableMango/cloudflare-controller/api/v1alpha1"
 )
 
 var _ = Describe("CloudflaredDeployment Controller", func() {
@@ -38,15 +38,15 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
-		cloudflareddeployment := &cloudflarev1alpha1.CloudflaredDeployment{}
+		deployment := &cfv1alpha1.CloudflaredDeployment{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind CloudflaredDeployment")
-			err := k8sClient.Get(ctx, typeNamespacedName, cloudflareddeployment)
+			err := k8sClient.Get(ctx, typeNamespacedName, deployment)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &cloudflarev1alpha1.CloudflaredDeployment{
+				resource := &cfv1alpha1.CloudflaredDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -58,8 +58,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &cloudflarev1alpha1.CloudflaredDeployment{}
+			resource := &cfv1alpha1.CloudflaredDeployment{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -77,8 +76,11 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			resource := &cfv1alpha1.CloudflaredDeployment{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Spec.Kind).To(Equal("DaemonSet"))
 		})
 	})
 })
