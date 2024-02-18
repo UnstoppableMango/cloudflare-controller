@@ -21,6 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//+kubebuilder:printcolumn:JSONPath=".status.replicas",name=Replicas,type=int
+//+kubebuilder:printcolumn:JSONPath=".status.state",name=State,type=string
+
 // CloudflaredDeploymentSpec defines the desired state of CloudflaredDeployment
 type CloudflaredDeploymentSpec struct {
 	//+kubebuilder:validation:Enum=Deployment;DaemonSet
@@ -33,8 +36,11 @@ type CloudflaredDeploymentSpec struct {
 
 // CloudflaredDeploymentStatus defines the observed state of CloudflaredDeployment
 type CloudflaredDeploymentStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +optional
+	Replicas int `json:"replicas"`
+
+	// +optional
+	State string `json:"state"`
 }
 
 //+kubebuilder:object:root=true

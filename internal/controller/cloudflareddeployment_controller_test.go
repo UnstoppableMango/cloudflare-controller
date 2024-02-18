@@ -25,9 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	cfv1alpha1 "github.com/UnstoppableMango/cloudflare-controller/api/v1alpha1"
+	appsV1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("CloudflaredDeployment Controller", func() {
@@ -51,7 +52,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -62,7 +62,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance CloudflaredDeployment")
+			By("Cleaning up the specific resource instance of CloudflaredDeployment")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
@@ -76,11 +76,47 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+		})
+		It("should default to a DaemonSet", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &CloudflaredDeploymentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
 
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Fetching the deployment")
 			resource := &cfv1alpha1.CloudflaredDeployment{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
+
 			Expect(resource.Spec.Kind).To(Equal("DaemonSet"))
+		})
+		It("should create a DaemonSet", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &CloudflaredDeploymentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Fetching the daemon set")
+			resource := &appsV1.DaemonSet{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(resource).NotTo(BeNil())
+			Expect(resource.Spec.Template.Spec.Containers).To(ContainElement(v1.Container{
+				Image: "",
+			}))
 		})
 	})
 })

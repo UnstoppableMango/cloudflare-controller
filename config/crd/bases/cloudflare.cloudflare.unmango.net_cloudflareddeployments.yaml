@@ -7572,6 +7572,11 @@ spec:
           status:
             description: CloudflaredDeploymentStatus defines the observed state of
               CloudflaredDeployment
+            properties:
+              replicas:
+                type: integer
+              state:
+                type: string
             type: object
         type: object
     served: true
