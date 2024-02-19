@@ -64,6 +64,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			By("Cleaning up the specific resource instance of CloudflaredDeployment")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
+
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &CloudflaredDeploymentReconciler{
@@ -76,6 +77,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
+
 		It("should default to a DaemonSet", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &CloudflaredDeploymentReconciler{
@@ -95,6 +97,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			Expect(resource.Spec.Kind).To(Equal(cfv1alpha1.DaemonSet))
 		})
+
 		It("should create a DaemonSet", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &CloudflaredDeploymentReconciler{
@@ -109,6 +112,67 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			By("Fetching the daemon set")
 			resource := &appsV1.DaemonSet{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(resource).NotTo(BeNil())
+			Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := resource.Spec.Template.Spec.Containers[0]
+			Expect(container.Name).To(Equal("cloudflared"))
+			Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
+		})
+	})
+	Context("When reconciling a resource with the Deployment kind", func() {
+		const resourceName = "test-resource"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: "default",
+		}
+		deployment := &cfv1alpha1.CloudflaredDeployment{}
+
+		BeforeEach(func() {
+			By("creating the custom resource for the Kind CloudflaredDeployment")
+			err := k8sClient.Get(ctx, typeNamespacedName, deployment)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &cfv1alpha1.CloudflaredDeployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: "default",
+					},
+					Spec: cfv1alpha1.CloudflaredDeploymentSpec{
+						Kind: cfv1alpha1.Deployment,
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			resource := &cfv1alpha1.CloudflaredDeployment{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Cleaning up the specific resource instance of CloudflaredDeployment")
+			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+		})
+
+		It("should create a Deployment", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &CloudflaredDeploymentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Fetching the deployment")
+			resource := &appsV1.Deployment{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
