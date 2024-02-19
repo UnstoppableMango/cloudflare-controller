@@ -21,14 +21,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//+kubebuilder:printcolumn:JSONPath=".status.replicas",name=Replicas,type=int
-//+kubebuilder:printcolumn:JSONPath=".status.state",name=State,type=string
+// CloudflaredDeploymentKind describes the kind of deployment to create.
+// +kubebuilder:validation:Enum=DaemonSet;Deployment
+type CloudflaredDeploymentKind string
+
+const (
+	DaemonSet  CloudflaredDeploymentKind = "DaemonSet"
+	Deployment CloudflaredDeploymentKind = "Deployment"
+)
 
 // CloudflaredDeploymentSpec defines the desired state of CloudflaredDeployment
 type CloudflaredDeploymentSpec struct {
-	//+kubebuilder:validation:Enum=Deployment;DaemonSet
 	//+kubebuilder:default:=DaemonSet
-	Kind string `json:"kind,omitempty"`
+	Kind CloudflaredDeploymentKind `json:"kind,omitempty"`
 
 	// +optional
 	Template *v1.PodTemplateSpec `json:"template,omitempty"`
@@ -37,14 +42,13 @@ type CloudflaredDeploymentSpec struct {
 // CloudflaredDeploymentStatus defines the observed state of CloudflaredDeployment
 type CloudflaredDeploymentStatus struct {
 	// +optional
-	Replicas int `json:"replicas"`
-
-	// +optional
 	State string `json:"state"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:JSONPath=".status.replicas",name=Replicas,type=integer
+//+kubebuilder:printcolumn:JSONPath=".status.state",name=State,type=string
 
 // CloudflaredDeployment is the Schema for the cloudflareddeployments API
 type CloudflaredDeployment struct {

@@ -14,7 +14,14 @@ spec:
     singular: cloudflareddeployment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.replicas
+      name: Replicas
+      type: integer
+    - jsonPath: .status.state
+      name: State
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: CloudflaredDeployment is the Schema for the cloudflareddeployments
@@ -37,9 +44,11 @@ spec:
             properties:
               kind:
                 default: DaemonSet
+                description: CloudflaredDeploymentKind describes the kind of deployment
+                  to create.
                 enum:
-                - Deployment
                 - DaemonSet
+                - Deployment
                 type: string
               template:
                 description: PodTemplateSpec describes the data a pod should have
@@ -7573,8 +7582,6 @@ spec:
             description: CloudflaredDeploymentStatus defines the observed state of
               CloudflaredDeployment
             properties:
-              replicas:
-                type: integer
               state:
                 type: string
             type: object

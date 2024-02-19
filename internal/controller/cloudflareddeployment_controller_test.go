@@ -27,7 +27,6 @@ import (
 
 	cfv1alpha1 "github.com/UnstoppableMango/cloudflare-controller/api/v1alpha1"
 	appsV1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -94,7 +93,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(resource.Spec.Kind).To(Equal("DaemonSet"))
+			Expect(resource.Spec.Kind).To(Equal(cfv1alpha1.DaemonSet))
 		})
 		It("should create a DaemonSet", func() {
 			By("Reconciling the created resource")
@@ -114,9 +113,10 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(resource).NotTo(BeNil())
-			Expect(resource.Spec.Template.Spec.Containers).To(ContainElement(v1.Container{
-				Image: "",
-			}))
+			Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+			container := resource.Spec.Template.Spec.Containers[0]
+			Expect(container.Name).To(Equal("cloudflared"))
+			Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
 		})
 	})
 })
