@@ -18,8 +18,6 @@ package controller
 
 import (
 	"context"
-
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,14 +26,15 @@ import (
 
 	cfv1alpha1 "github.com/UnstoppableMango/cloudflare-controller/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	defaultImage string = "docker.io/cloudflare/cloudflared:latest"
 )
 
 // CloudflaredDeploymentReconciler reconciles a CloudflaredDeployment object
 type CloudflaredDeploymentReconciler struct {
 	client.Client
-	logger logr.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -44,23 +43,47 @@ type CloudflaredDeploymentReconciler struct {
 //+kubebuilder:rbac:groups=cloudflare.cloudflare.unmango.net,resources=cloudflareddeployments/finalizers,verbs=update
 
 func (r *CloudflaredDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.logger = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	deployment := &cfv1alpha1.CloudflaredDeployment{}
 	err := r.Get(ctx, req.NamespacedName, deployment)
 	if err != nil {
-		r.logger.Error(err, "Failed to get CloudflaredDeployment")
+		logger.Error(err, "Failed to get CloudflaredDeployment")
 		return ctrl.Result{}, err
 	}
 
 	if deployment.Spec.Kind == cfv1alpha1.DaemonSet {
-		return reconcile[*appsv1.DaemonSet](r, ctx, req, deployment)
+		err = r.Get(ctx, req.NamespacedName, &appsv1.DaemonSet{})
+	} else if deployment.Spec.Kind == cfv1alpha1.Deployment {
+		err = r.Get(ctx, req.NamespacedName, &appsv1.Deployment{})
+	} else {
+		logger.Info("Invalid CloudflaredDeployment kind")
+		return ctrl.Result{}, nil
 	}
-	if deployment.Spec.Kind == cfv1alpha1.Deployment {
-		return r.reconcileDeployment(ctx, req, deployment)
+	if err == nil {
+		logger.Info("Up to date", "kind", deployment.Spec.Kind)
+		return ctrl.Result{}, nil
 	}
 
-	r.logger.Info("Invalid CloudflaredDeployment kind")
+	if !errors.IsNotFound(err) {
+		logger.Error(err, "Failed to get", "kind", deployment.Spec.Kind)
+		return ctrl.Result{}, err
+	}
+
+	var app client.Object
+	switch deployment.Spec.Kind {
+	case cfv1alpha1.DaemonSet:
+		app = deployment.ToDaemonSet(defaultImage)
+	case cfv1alpha1.Deployment:
+		app = deployment.ToDeployment(defaultImage)
+	}
+
+	err = r.Create(ctx, app)
+	if err != nil {
+		logger.Error(err, "Failed to create", "kind", deployment.Spec.Kind)
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -69,172 +92,4 @@ func (r *CloudflaredDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) err
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cfv1alpha1.CloudflaredDeployment{}).
 		Complete(r)
-}
-
-const (
-	defaultImage string = "docker.io/cloudflare/cloudflared:latest"
-	defaultName  string = "cloudflared"
-)
-
-var defaultMatchLabels = map[string]string{"app": "cloudflared"}
-var defaultSelector = metav1.LabelSelector{MatchLabels: defaultMatchLabels}
-var defaultTemplate = v1.PodTemplateSpec{
-	ObjectMeta: metav1.ObjectMeta{Labels: defaultMatchLabels},
-	Spec: v1.PodSpec{
-		Containers: []v1.Container{{
-			Name:  defaultName,
-			Image: defaultImage,
-		}},
-	},
-}
-
-func defaultDaemonSet(deployment cfv1alpha1.CloudflaredDeployment) appsv1.DaemonSet {
-	return appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: deployment.Namespace,
-			Name:      deployment.Name,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &defaultSelector,
-			Template: defaultTemplate,
-		},
-	}
-}
-
-func defaultDeployment(deployment cfv1alpha1.CloudflaredDeployment) appsv1.Deployment {
-	return appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: deployment.Namespace,
-			Name:      deployment.Name,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &defaultSelector,
-			Template: defaultTemplate,
-		},
-	}
-}
-
-type kind interface {
-	runtime.Object
-	*appsv1.DaemonSet | *appsv1.Deployment
-}
-
-type defaulter[T kind] interface {
-	Default(deployment *cfv1alpha1.CloudflaredDeployment) T
-}
-
-func reconcile[T kind](
-	r *CloudflaredDeploymentReconciler,
-	ctx context.Context,
-	req ctrl.Request,
-	deployment *cfv1alpha1.CloudflaredDeployment,
-	defaulter defaulter[T],
-) (ctrl.Result, error) {
-	var app T
-	err := r.Get(ctx, req.NamespacedName, app)
-	if err == nil {
-		r.logger.Info("DaemonSet is up to date")
-		return ctrl.Result{}, nil
-	}
-
-	if !errors.IsNotFound(err) {
-		r.logger.Error(err, "Failed to get DaemonSet")
-		return ctrl.Result{}, err
-	}
-
-	app = defaulter.Default(deployment)
-	if deployment.Spec.Template != nil {
-		deployment.Spec.Template.DeepCopyInto(&app.Spec.Template)
-	}
-
-	err = r.Create(ctx, app)
-	if err != nil {
-		r.logger.Error(err, "Failed to create DaemonSet")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *CloudflaredDeploymentReconciler) reconcileDaemonSet(
-	ctx context.Context,
-	req ctrl.Request,
-	deployment *cfv1alpha1.CloudflaredDeployment,
-) (ctrl.Result, error) {
-	app := &appsv1.DaemonSet{}
-	err := r.Get(ctx, req.NamespacedName, app)
-	if err == nil {
-		r.logger.Info("DaemonSet is up to date")
-		return ctrl.Result{}, nil
-	}
-
-	if !errors.IsNotFound(err) {
-		r.logger.Error(err, "Failed to get DaemonSet")
-		return ctrl.Result{}, err
-	}
-
-	app.Namespace = deployment.Namespace
-	app.Name = deployment.Name
-	app.Spec = appsv1.DaemonSetSpec{
-		Selector: &defaultSelector,
-		Template: defaultTemplate,
-	}
-
-	if deployment.Spec.Template != nil {
-		deployment.Spec.Template.DeepCopyInto(&app.Spec.Template)
-	}
-
-	err = r.Create(ctx, app)
-	if err != nil {
-		r.logger.Error(err, "Failed to create DaemonSet")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *CloudflaredDeploymentReconciler) reconcileDeployment(
-	ctx context.Context,
-	req ctrl.Request,
-	deployment *cfv1alpha1.CloudflaredDeployment,
-) (ctrl.Result, error) {
-	app := &appsv1.Deployment{}
-	err := r.Get(ctx, req.NamespacedName, app)
-	if err == nil {
-		r.logger.Info("Deployment is up to date")
-		return ctrl.Result{}, nil
-	}
-
-	if !errors.IsNotFound(err) {
-		r.logger.Error(err, "Failed to get Deployment")
-		return ctrl.Result{}, err
-	}
-
-	app.Namespace = deployment.Namespace
-	app.Name = deployment.Name
-	matchLabels := map[string]string{"app": "cloudflared"}
-	app.Spec = appsv1.DeploymentSpec{
-		Selector: &metav1.LabelSelector{MatchLabels: matchLabels},
-		Template: v1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{Labels: matchLabels},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{{
-					Name:  "cloudflared",
-					Image: defaultImage,
-				}},
-			},
-		},
-	}
-
-	if deployment.Spec.Template != nil {
-		deployment.Spec.Template.DeepCopyInto(&app.Spec.Template)
-	}
-
-	err = r.Create(ctx, app)
-	if err != nil {
-		r.logger.Error(err, "Failed to create DaemonSet")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
 }

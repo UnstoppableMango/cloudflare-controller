@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,6 +67,57 @@ type CloudflaredDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CloudflaredDeployment `json:"items"`
+}
+
+const appName = "cloudflared"
+
+var (
+	defaultMatchLabels = map[string]string{"app": appName}
+	defaultSelector    = metav1.LabelSelector{MatchLabels: defaultMatchLabels}
+)
+
+func (d *CloudflaredDeployment) ToDaemonSet(image string) *appsv1.DaemonSet {
+	return &appsv1.DaemonSet{
+		ObjectMeta: d.appMeta(),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &defaultSelector,
+			Template: d.podTemplate(appName, image),
+		},
+	}
+}
+
+func (d *CloudflaredDeployment) ToDeployment(image string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: d.appMeta(),
+		Spec: appsv1.DeploymentSpec{
+			Selector: &defaultSelector,
+			Template: d.podTemplate(appName, image),
+		},
+	}
+}
+
+func (d *CloudflaredDeployment) appMeta() metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      d.Name,
+		Namespace: d.Namespace,
+	}
+}
+
+func (d *CloudflaredDeployment) podTemplate(name, image string) v1.PodTemplateSpec {
+	return v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{Labels: defaultMatchLabels},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{
+				Name:  name,
+				Image: image,
+			}},
+		},
+	}
+}
+
+func (d *CloudflaredDeployment) setObjectMeta(m *metav1.ObjectMeta) {
+	m.Name = d.Name
+	m.Namespace = d.Namespace
 }
 
 func init() {
