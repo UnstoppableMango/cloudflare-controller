@@ -81,7 +81,7 @@ func (d *CloudflaredDeployment) ToDaemonSet(image string) *appsv1.DaemonSet {
 		ObjectMeta: d.appMeta(),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &defaultSelector,
-			Template: d.podTemplate(appName, image),
+			Template: d.podTemplate(image),
 		},
 	}
 }
@@ -91,7 +91,7 @@ func (d *CloudflaredDeployment) ToDeployment(image string) *appsv1.Deployment {
 		ObjectMeta: d.appMeta(),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &defaultSelector,
-			Template: d.podTemplate(appName, image),
+			Template: d.podTemplate(image),
 		},
 	}
 }
@@ -103,16 +103,22 @@ func (d *CloudflaredDeployment) appMeta() metav1.ObjectMeta {
 	}
 }
 
-func (d *CloudflaredDeployment) podTemplate(name, image string) v1.PodTemplateSpec {
-	return v1.PodTemplateSpec{
+func (d *CloudflaredDeployment) podTemplate(image string) v1.PodTemplateSpec {
+	spec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{Labels: defaultMatchLabels},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{{
-				Name:  name,
+				Name:  appName,
 				Image: image,
 			}},
 		},
 	}
+
+	if d.Spec.Template != nil {
+		d.Spec.Template.DeepCopyInto(&spec)
+	}
+
+	return spec
 }
 
 func (d *CloudflaredDeployment) setObjectMeta(m *metav1.ObjectMeta) {

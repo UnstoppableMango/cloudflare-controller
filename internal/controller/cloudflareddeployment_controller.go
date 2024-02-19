@@ -52,12 +52,13 @@ func (r *CloudflaredDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	if deployment.Spec.Kind == cfv1alpha1.DaemonSet {
+	switch deployment.Spec.Kind {
+	case cfv1alpha1.DaemonSet:
 		err = r.Get(ctx, req.NamespacedName, &appsv1.DaemonSet{})
-	} else if deployment.Spec.Kind == cfv1alpha1.Deployment {
+	case cfv1alpha1.Deployment:
 		err = r.Get(ctx, req.NamespacedName, &appsv1.Deployment{})
-	} else {
-		logger.Info("Invalid CloudflaredDeployment kind")
+	default:
+		logger.Info("Invalid CloudflaredDeployment kind", "kind", deployment.Spec.Kind)
 		return ctrl.Result{}, nil
 	}
 	if err == nil {
