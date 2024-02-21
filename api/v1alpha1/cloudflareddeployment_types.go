@@ -73,14 +73,13 @@ const appName = "cloudflared"
 
 var (
 	defaultMatchLabels = map[string]string{"app": appName}
-	defaultSelector    = metav1.LabelSelector{MatchLabels: defaultMatchLabels}
 )
 
 func (d *CloudflaredDeployment) ToDaemonSet(image string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
 		ObjectMeta: d.appMeta(),
 		Spec: appsv1.DaemonSetSpec{
-			Selector: &defaultSelector,
+			Selector: d.selector(),
 			Template: d.podTemplate(image),
 		},
 	}
@@ -90,7 +89,7 @@ func (d *CloudflaredDeployment) ToDeployment(image string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: d.appMeta(),
 		Spec: appsv1.DeploymentSpec{
-			Selector: &defaultSelector,
+			Selector: d.selector(),
 			Template: d.podTemplate(image),
 		},
 	}
@@ -100,9 +99,15 @@ func (d *CloudflaredDeployment) appMeta() metav1.ObjectMeta {
 	return metav1.ObjectMeta{Name: d.Name, Namespace: d.Namespace}
 }
 
+func (d *CloudflaredDeployment) selector() *metav1.LabelSelector {
+	return &metav1.LabelSelector{MatchLabels: d.matchLabels()}
+}
+
 func (d *CloudflaredDeployment) podTemplate(image string) v1.PodTemplateSpec {
 	spec := v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{Labels: defaultMatchLabels},
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: d.matchLabels(),
+		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{{
 				Name:  appName,
@@ -118,9 +123,13 @@ func (d *CloudflaredDeployment) podTemplate(image string) v1.PodTemplateSpec {
 	return spec
 }
 
-func (d *CloudflaredDeployment) setObjectMeta(m *metav1.ObjectMeta) {
-	m.Name = d.Name
-	m.Namespace = d.Namespace
+func (d *CloudflaredDeployment) matchLabels() map[string]string {
+	if d.Spec.Template != nil && d.Spec.Template.Labels != nil {
+		// TODO: Don't blindly copy labels
+		return d.Spec.Template.Labels
+	}
+
+	return defaultMatchLabels
 }
 
 func init() {

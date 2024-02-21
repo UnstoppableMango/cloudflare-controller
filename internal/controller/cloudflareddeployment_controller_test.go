@@ -41,7 +41,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			Namespace: "default",
 		}
 		deployment := &cfv1alpha1.CloudflaredDeployment{}
-		spec := cfv1alpha1.CloudflaredDeploymentSpec{}
+		spec := &cfv1alpha1.CloudflaredDeploymentSpec{}
 
 		JustBeforeEach(func() {
 			By("creating the custom resource for the Kind CloudflaredDeployment")
@@ -52,7 +52,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: spec,
+					Spec: *spec,
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -169,6 +169,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			BeforeEach(func() {
 				By("Configuring the CloudflaredDeployment spec")
+				spec.Kind = cfv1alpha1.DaemonSet
 				spec.Template = &v1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
