@@ -66,13 +66,13 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 
 			daemonSet := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err != nil {
+			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err == nil && !errors.IsNotFound(err) {
 				By("Cleaning up the DaemonSet")
 				_ = k8sClient.Delete(ctx, daemonSet)
 			}
 
-			deployment := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err != nil {
+			deployment := &appsv1.Deployment{}
+			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err == nil && !errors.IsNotFound(err) {
 				By("Cleaning up the Deployment")
 				_ = k8sClient.Delete(ctx, deployment)
 			}
@@ -136,160 +136,73 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 		})
 
 		Context("and kind is Deployment", func() {
-			
-		})
-	})
-	Context("When reconciling a resource with the Deployment kind", func() {
-		const resourceName = "test-resource"
-
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default",
-		}
-		deployment := &cfv1alpha1.CloudflaredDeployment{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind CloudflaredDeployment")
-			err := k8sClient.Get(ctx, typeNamespacedName, deployment)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &cfv1alpha1.CloudflaredDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: cfv1alpha1.CloudflaredDeploymentSpec{
-						Kind: cfv1alpha1.Deployment,
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			resource := &cfv1alpha1.CloudflaredDeployment{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleaning up the specific resource instance of CloudflaredDeployment")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-
-			daemonSet := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err != nil {
-				By("Cleaning up the DaemonSet")
-				_ = k8sClient.Delete(ctx, daemonSet)
-			}
-
-			deployment := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err != nil {
-				By("Cleaning up the Deployment")
-				_ = k8sClient.Delete(ctx, deployment)
-			}
-		})
-
-		It("should create a Deployment", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &CloudflaredDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
+			BeforeEach(func() {
+				deployment.Spec.Kind = cfv1alpha1.Deployment
 			})
-			Expect(err).NotTo(HaveOccurred())
 
-			By("Fetching the deployment")
-			resource := &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+			It("should create a Deployment", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &CloudflaredDeploymentReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
 
-			Expect(resource).NotTo(BeNil())
-			Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
-			container := resource.Spec.Template.Spec.Containers[0]
-			Expect(container.Name).To(Equal("cloudflared"))
-			Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the deployment")
+				resource := &appsv1.Deployment{}
+				err = k8sClient.Get(ctx, typeNamespacedName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+				container := resource.Spec.Template.Spec.Containers[0]
+				Expect(container.Name).To(Equal("cloudflared"))
+				Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
+			})
 		})
-	})
-	Context("When reconciling a resource with a pod spec template", func() {
-		const resourceName = "test-resource"
-		const expectedImage = "something/not/cloudflared"
 
-		ctx := context.Background()
+		Context("and pod spec template is configured", func() {
+			const expectedImage = "something/not/cloudflared"
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default",
-		}
-		deployment := &cfv1alpha1.CloudflaredDeployment{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind CloudflaredDeployment")
-			err := k8sClient.Get(ctx, typeNamespacedName, deployment)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &cfv1alpha1.CloudflaredDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: cfv1alpha1.CloudflaredDeploymentSpec{
-						Template: &v1.PodTemplateSpec{
-							Spec: v1.PodSpec{
-								Containers: []v1.Container{{
-									Image: expectedImage,
-								}},
-							},
+			BeforeEach(func() {
+				deployment.Spec = cfv1alpha1.CloudflaredDeploymentSpec{
+					Template: &v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{{
+								Image: expectedImage,
+							}},
 						},
 					},
 				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			resource := &cfv1alpha1.CloudflaredDeployment{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleaning up the specific resource instance of CloudflaredDeployment")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-
-			daemonSet := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err != nil {
-				By("Cleaning up the DaemonSet")
-				_ = k8sClient.Delete(ctx, daemonSet)
-			}
-
-			deployment := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err != nil {
-				By("Cleaning up the Deployment")
-				_ = k8sClient.Delete(ctx, deployment)
-			}
-		})
-
-		It("should create a Deployment", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &CloudflaredDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
 			})
-			Expect(err).NotTo(HaveOccurred())
 
-			By("Fetching the deployment")
-			resource := &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+			It("should create a DaemonSet", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &CloudflaredDeploymentReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
 
-			Expect(resource).NotTo(BeNil())
-			Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
-			container := resource.Spec.Template.Spec.Containers[0]
-			Expect(container.Name).To(Equal("cloudflared"))
-			Expect(container.Image).To(Equal(expectedImage))
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the DaemonSet")
+				resource := &appsv1.DaemonSet{}
+				err = k8sClient.Get(ctx, typeNamespacedName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+				container := resource.Spec.Template.Spec.Containers[0]
+				Expect(container.Name).To(Equal("cloudflared"))
+				Expect(container.Image).To(Equal(expectedImage))
+			})
 		})
 	})
 })

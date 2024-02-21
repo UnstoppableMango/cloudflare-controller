@@ -97,10 +97,7 @@ func (d *CloudflaredDeployment) ToDeployment(image string) *appsv1.Deployment {
 }
 
 func (d *CloudflaredDeployment) appMeta() metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:      d.Name,
-		Namespace: d.Namespace,
-	}
+	return metav1.ObjectMeta{Name: d.Name, Namespace: d.Namespace}
 }
 
 func (d *CloudflaredDeployment) podTemplate(image string) v1.PodTemplateSpec {
