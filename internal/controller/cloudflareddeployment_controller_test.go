@@ -36,14 +36,14 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
-
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default",
 		}
 		deployment := &cfv1alpha1.CloudflaredDeployment{}
+		spec := cfv1alpha1.CloudflaredDeploymentSpec{}
 
-		BeforeEach(func() {
+		JustBeforeEach(func() {
 			By("creating the custom resource for the Kind CloudflaredDeployment")
 			err := k8sClient.Get(ctx, typeNamespacedName, deployment)
 			if err != nil && errors.IsNotFound(err) {
@@ -52,6 +52,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
+					Spec: spec,
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -105,8 +106,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			By("Fetching the deployment")
 			resource := &cfv1alpha1.CloudflaredDeployment{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+			Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
 
 			Expect(resource.Spec.Kind).To(Equal(cfv1alpha1.DaemonSet))
 		})
@@ -125,8 +125,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			By("Fetching the daemon set")
 			resource := &appsv1.DaemonSet{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+			Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
 
 			Expect(resource).NotTo(BeNil())
 			Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -137,7 +136,8 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 		Context("and kind is Deployment", func() {
 			BeforeEach(func() {
-				deployment.Spec.Kind = cfv1alpha1.Deployment
+				By("Setting the kind to Deployment")
+				spec.Kind = cfv1alpha1.Deployment
 			})
 
 			It("should create a Deployment", func() {
@@ -154,8 +154,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 				By("Fetching the deployment")
 				resource := &appsv1.Deployment{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
+				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
 
 				Expect(resource).NotTo(BeNil())
 				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -169,7 +168,8 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			const expectedImage = "something/not/cloudflared"
 
 			BeforeEach(func() {
-				deployment.Spec = cfv1alpha1.CloudflaredDeploymentSpec{
+				By("Configuring the CloudflaredDeployment spec")
+				spec = cfv1alpha1.CloudflaredDeploymentSpec{
 					Template: &v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
 							Containers: []v1.Container{{
@@ -194,8 +194,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 				By("Fetching the DaemonSet")
 				resource := &appsv1.DaemonSet{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
+				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
 
 				Expect(resource).NotTo(BeNil())
 				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
