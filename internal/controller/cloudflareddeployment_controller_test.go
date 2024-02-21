@@ -67,13 +67,13 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 
 			daemonSet := &appsv1.DaemonSet{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err == nil && !errors.IsNotFound(err) {
+			if err = k8sClient.Get(ctx, typeNamespacedName, daemonSet); err == nil {
 				By("Cleaning up the DaemonSet")
 				_ = k8sClient.Delete(ctx, daemonSet)
 			}
 
 			deployment := &appsv1.Deployment{}
-			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err == nil && !errors.IsNotFound(err) {
+			if err = k8sClient.Get(ctx, typeNamespacedName, deployment); err == nil {
 				By("Cleaning up the Deployment")
 				_ = k8sClient.Delete(ctx, deployment)
 			}
@@ -169,13 +169,17 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 
 			BeforeEach(func() {
 				By("Configuring the CloudflaredDeployment spec")
-				spec = cfv1alpha1.CloudflaredDeploymentSpec{
-					Template: &v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{{
-								Image: expectedImage,
-							}},
+				spec.Template = &v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": "cloudflared",
 						},
+					},
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{{
+							Name:  "test",
+							Image: expectedImage,
+						}},
 					},
 				}
 			})
@@ -202,6 +206,8 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				Expect(container.Name).To(Equal("cloudflared"))
 				Expect(container.Image).To(Equal(expectedImage))
 			})
+
+			// TODO: Test for selector matching custom template labels
 		})
 	})
 })
