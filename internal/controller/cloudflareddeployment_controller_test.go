@@ -134,36 +134,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
 		})
 
-		Context("and kind is Deployment", func() {
-			BeforeEach(func() {
-				By("Setting the kind to Deployment")
-				spec.Kind = cfv1alpha1.Deployment
-			})
-
-			It("should create a Deployment", func() {
-				By("Reconciling the created resource")
-				controllerReconciler := &CloudflaredDeploymentReconciler{
-					Client: k8sClient,
-					Scheme: k8sClient.Scheme(),
-				}
-
-				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-					NamespacedName: typeNamespacedName,
-				})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Fetching the deployment")
-				resource := &appsv1.Deployment{}
-				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
-
-				Expect(resource).NotTo(BeNil())
-				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
-				container := resource.Spec.Template.Spec.Containers[0]
-				Expect(container.Name).To(Equal("cloudflared"))
-				Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
-			})
-		})
-
 		Context("and pod spec template is configured", func() {
 			const (
 				expectedImage     = "something/not/cloudflared"
@@ -173,8 +143,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			expectedLabels := map[string]string{"app": "cloudflared"}
 
 			BeforeEach(func() {
-				By("Configuring the CloudflaredDeployment spec")
-				spec.Kind = cfv1alpha1.DaemonSet
+				By("Setting labels and containers")
 				spec.Template = &v1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{Labels: expectedLabels},
 					Spec: v1.PodSpec{
@@ -184,6 +153,11 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 						}},
 					},
 				}
+			})
+
+			AfterEach(func() {
+				By("Clearing the pod template")
+				spec.Template = nil
 			})
 
 			It("should create a DaemonSet", func() {
@@ -210,7 +184,237 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				Expect(container.Image).To(Equal(expectedImage))
 			})
 
-			// TODO: Test for selector matching custom template labels
+			It("should create a selector that matches pod labels", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &CloudflaredDeploymentReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the DaemonSet")
+				resource := &appsv1.DaemonSet{}
+				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Selector.MatchLabels).To(Equal(expectedLabels))
+			})
+		})
+
+		Context("and kind is DaemonSet", func() {
+			BeforeEach(func() {
+				By("Setting the kind to DaemonSet")
+				spec.Kind = cfv1alpha1.DaemonSet
+			})
+
+			AfterEach(func() {
+				By("Clearing the kind")
+				spec.Kind = ""
+			})
+
+			It("should create a DaemonSet", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &CloudflaredDeploymentReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the DaemonSet")
+				resource := &appsv1.DaemonSet{}
+				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+				container := resource.Spec.Template.Spec.Containers[0]
+				Expect(container.Name).To(Equal("cloudflared"))
+				Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
+			})
+
+			Context("and pod spec template is configured", func() {
+				const (
+					expectedImage     = "something/not/cloudflared"
+					expectedContainer = "container-name"
+				)
+
+				expectedLabels := map[string]string{"app": "cloudflared"}
+
+				BeforeEach(func() {
+					By("Setting labels and containers")
+					spec.Template = &v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: expectedLabels},
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{{
+								Name:  expectedContainer,
+								Image: expectedImage,
+							}},
+						},
+					}
+				})
+
+				AfterEach(func() {
+					By("Clearing the pod template")
+					spec.Template = nil
+				})
+
+				It("should create a DaemonSet", func() {
+					By("Reconciling the created resource")
+					controllerReconciler := &CloudflaredDeploymentReconciler{
+						Client: k8sClient,
+						Scheme: k8sClient.Scheme(),
+					}
+
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Fetching the DaemonSet")
+					resource := &appsv1.DaemonSet{}
+					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+					Expect(resource).NotTo(BeNil())
+					Expect(resource.Spec.Template.Labels).To(Equal(expectedLabels))
+					Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+					container := resource.Spec.Template.Spec.Containers[0]
+					Expect(container.Name).To(Equal(expectedContainer))
+					Expect(container.Image).To(Equal(expectedImage))
+				})
+
+				It("should create a selector that matches pod labels", func() {
+					By("Reconciling the created resource")
+					controllerReconciler := &CloudflaredDeploymentReconciler{
+						Client: k8sClient,
+						Scheme: k8sClient.Scheme(),
+					}
+
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Fetching the DaemonSet")
+					resource := &appsv1.DaemonSet{}
+					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+					Expect(resource).NotTo(BeNil())
+					Expect(resource.Spec.Selector.MatchLabels).To(Equal(expectedLabels))
+				})
+			})
+		})
+
+		Context("and kind is Deployment", func() {
+			BeforeEach(func() {
+				By("Setting the kind to Deployment")
+				spec.Kind = cfv1alpha1.Deployment
+			})
+
+			AfterEach(func() {
+				By("Clearing the kind")
+				spec.Kind = ""
+			})
+
+			It("should create a Deployment", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &CloudflaredDeploymentReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the deployment")
+				resource := &appsv1.Deployment{}
+				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+				container := resource.Spec.Template.Spec.Containers[0]
+				Expect(container.Name).To(Equal("cloudflared"))
+				Expect(container.Image).To(Equal("docker.io/cloudflare/cloudflared:latest"))
+			})
+
+			Context("and pod spec template is configured", func() {
+				const (
+					expectedImage     = "something/not/cloudflared"
+					expectedContainer = "container-name"
+				)
+
+				expectedLabels := map[string]string{"app": "cloudflared"}
+
+				BeforeEach(func() {
+					By("Setting labels and containers")
+					spec.Template = &v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: expectedLabels},
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{{
+								Name:  expectedContainer,
+								Image: expectedImage,
+							}},
+						},
+					}
+				})
+
+				AfterEach(func() {
+					By("Clearing pod template")
+					spec.Template = nil
+				})
+
+				It("should create a Deployment", func() {
+					By("Reconciling the created resource")
+					controllerReconciler := &CloudflaredDeploymentReconciler{
+						Client: k8sClient,
+						Scheme: k8sClient.Scheme(),
+					}
+
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Fetching the Deployment")
+					resource := &appsv1.Deployment{}
+					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+					Expect(resource).NotTo(BeNil())
+					Expect(resource.Spec.Template.Labels).To(Equal(expectedLabels))
+					Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
+					container := resource.Spec.Template.Spec.Containers[0]
+					Expect(container.Name).To(Equal(expectedContainer))
+					Expect(container.Image).To(Equal(expectedImage))
+				})
+
+				It("should create a selector that matches pod labels", func() {
+					By("Reconciling the created resource")
+					controllerReconciler := &CloudflaredDeploymentReconciler{
+						Client: k8sClient,
+						Scheme: k8sClient.Scheme(),
+					}
+
+					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+						NamespacedName: typeNamespacedName,
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Fetching the Deployment")
+					resource := &appsv1.Deployment{}
+					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
+
+					Expect(resource).NotTo(BeNil())
+					Expect(resource.Spec.Selector.MatchLabels).To(Equal(expectedLabels))
+				})
+			})
 		})
 	})
 })
