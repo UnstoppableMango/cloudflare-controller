@@ -117,7 +117,12 @@ func (d *CloudflaredDeployment) podTemplate(image string) v1.PodTemplateSpec {
 	}
 
 	if d.Spec.Template != nil {
-		d.Spec.Template.DeepCopyInto(&spec)
+		if d.Spec.Template.Labels != nil {
+			spec.Labels = d.Spec.Template.Labels
+		}
+		if d.Spec.Template.Spec.Containers != nil {
+			spec.Spec.Containers = d.Spec.Template.Spec.Containers
+		}
 	}
 
 	return spec

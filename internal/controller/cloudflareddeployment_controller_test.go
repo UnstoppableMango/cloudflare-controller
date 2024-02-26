@@ -165,20 +165,21 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 		})
 
 		Context("and pod spec template is configured", func() {
-			const expectedImage = "something/not/cloudflared"
+			const (
+				expectedImage     = "something/not/cloudflared"
+				expectedContainer = "container-name"
+			)
+
+			expectedLabels := map[string]string{"app": "cloudflared"}
 
 			BeforeEach(func() {
 				By("Configuring the CloudflaredDeployment spec")
 				spec.Kind = cfv1alpha1.DaemonSet
 				spec.Template = &v1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "cloudflared",
-						},
-					},
+					ObjectMeta: metav1.ObjectMeta{Labels: expectedLabels},
 					Spec: v1.PodSpec{
 						Containers: []v1.Container{{
-							Name:  "test",
+							Name:  expectedContainer,
 							Image: expectedImage,
 						}},
 					},
@@ -202,9 +203,10 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
 
 				Expect(resource).NotTo(BeNil())
+				Expect(resource.Spec.Template.Labels).To(Equal(expectedLabels))
 				Expect(resource.Spec.Template.Spec.Containers).To(HaveLen(1))
 				container := resource.Spec.Template.Spec.Containers[0]
-				Expect(container.Name).To(Equal("cloudflared"))
+				Expect(container.Name).To(Equal(expectedContainer))
 				Expect(container.Image).To(Equal(expectedImage))
 			})
 
