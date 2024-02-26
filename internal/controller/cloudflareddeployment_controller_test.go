@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -414,6 +415,21 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 					Expect(resource).NotTo(BeNil())
 					Expect(resource.Spec.Selector.MatchLabels).To(Equal(expectedLabels))
 				})
+			})
+		})
+
+		Context("and deployment is marked for deletion", func() {
+			var expectedTimestamp metav1.Time
+
+			BeforeEach(func() {
+				By("Setting the deletion timestamp")
+				expectedTimestamp = metav1.NewTime(time.Now())
+				deployment.DeletionTimestamp = &expectedTimestamp
+			})
+
+			AfterEach(func() {
+				By("Clearing the deletion timestamp")
+				deployment.DeletionTimestamp = nil
 			})
 		})
 	})
