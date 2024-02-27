@@ -57,6 +57,17 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
+
+			By("Reconciling the created resource")
+			controllerReconciler := &CloudflaredDeploymentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		AfterEach(func() {
@@ -80,31 +91,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			}
 		})
 
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &CloudflaredDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 		It("should default to a DaemonSet", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &CloudflaredDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
 			By("Fetching the deployment")
 			resource := &cfv1alpha1.CloudflaredDeployment{}
 			Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -113,17 +100,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 		})
 
 		It("should create a DaemonSet", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &CloudflaredDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
 			By("Fetching the daemon set")
 			resource := &appsv1.DaemonSet{}
 			Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -162,17 +138,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			})
 
 			It("should create a DaemonSet", func() {
-				By("Reconciling the created resource")
-				controllerReconciler := &CloudflaredDeploymentReconciler{
-					Client: k8sClient,
-					Scheme: k8sClient.Scheme(),
-				}
-
-				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-					NamespacedName: typeNamespacedName,
-				})
-				Expect(err).NotTo(HaveOccurred())
-
 				By("Fetching the DaemonSet")
 				resource := &appsv1.DaemonSet{}
 				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -186,17 +151,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			})
 
 			It("should create a selector that matches pod labels", func() {
-				By("Reconciling the created resource")
-				controllerReconciler := &CloudflaredDeploymentReconciler{
-					Client: k8sClient,
-					Scheme: k8sClient.Scheme(),
-				}
-
-				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-					NamespacedName: typeNamespacedName,
-				})
-				Expect(err).NotTo(HaveOccurred())
-
 				By("Fetching the DaemonSet")
 				resource := &appsv1.DaemonSet{}
 				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -218,17 +172,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			})
 
 			It("should create a DaemonSet", func() {
-				By("Reconciling the created resource")
-				controllerReconciler := &CloudflaredDeploymentReconciler{
-					Client: k8sClient,
-					Scheme: k8sClient.Scheme(),
-				}
-
-				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-					NamespacedName: typeNamespacedName,
-				})
-				Expect(err).NotTo(HaveOccurred())
-
 				By("Fetching the DaemonSet")
 				resource := &appsv1.DaemonSet{}
 				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -291,17 +234,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				})
 
 				It("should create a selector that matches pod labels", func() {
-					By("Reconciling the created resource")
-					controllerReconciler := &CloudflaredDeploymentReconciler{
-						Client: k8sClient,
-						Scheme: k8sClient.Scheme(),
-					}
-
-					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-						NamespacedName: typeNamespacedName,
-					})
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Fetching the DaemonSet")
 					resource := &appsv1.DaemonSet{}
 					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -324,17 +256,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 			})
 
 			It("should create a Deployment", func() {
-				By("Reconciling the created resource")
-				controllerReconciler := &CloudflaredDeploymentReconciler{
-					Client: k8sClient,
-					Scheme: k8sClient.Scheme(),
-				}
-
-				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-					NamespacedName: typeNamespacedName,
-				})
-				Expect(err).NotTo(HaveOccurred())
-
 				By("Fetching the deployment")
 				resource := &appsv1.Deployment{}
 				Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -373,17 +294,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				})
 
 				It("should create a Deployment", func() {
-					By("Reconciling the created resource")
-					controllerReconciler := &CloudflaredDeploymentReconciler{
-						Client: k8sClient,
-						Scheme: k8sClient.Scheme(),
-					}
-
-					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-						NamespacedName: typeNamespacedName,
-					})
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Fetching the Deployment")
 					resource := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
@@ -397,17 +307,6 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				})
 
 				It("should create a selector that matches pod labels", func() {
-					By("Reconciling the created resource")
-					controllerReconciler := &CloudflaredDeploymentReconciler{
-						Client: k8sClient,
-						Scheme: k8sClient.Scheme(),
-					}
-
-					_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-						NamespacedName: typeNamespacedName,
-					})
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Fetching the Deployment")
 					resource := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, typeNamespacedName, resource)).Should(Succeed())
