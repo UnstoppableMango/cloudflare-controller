@@ -75,10 +75,7 @@ func (r *CloudflaredDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 	var app client.Object
 	switch deployment.Spec.Kind {
 	case cfv1alpha1.DaemonSet:
-		temp := deployment.ToDaemonSet(defaultImage)
-		logger.Info("Debug1", "deployment", deployment)
-		logger.Info("Debug2", "template", temp.Spec.Template)
-		app = temp
+		app = deployment.ToDaemonSet(defaultImage)
 	case cfv1alpha1.Deployment:
 		app = deployment.ToDeployment(defaultImage)
 	}
