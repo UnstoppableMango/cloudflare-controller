@@ -437,7 +437,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				deployment.DeletionTimestamp = nil
 			})
 
-			It("should remove any Deployments owned by the deployment", func() {
+			It("should not leave any Deployments", func() {
 				By("Attempting to fetch a matching Deployment")
 				resource := &appsv1.Deployment{}
 				err := k8sClient.Get(ctx, typeNamespacedName, resource)
@@ -445,7 +445,7 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			})
 
-			It("should remove any DaemonSets owned by the deployment", func() {
+			It("should not leave any DaemonSets", func() {
 				By("Attempting to fetch a matching DaemonSet")
 				daemonSet := &appsv1.DaemonSet{}
 				err := k8sClient.Get(ctx, typeNamespacedName, daemonSet)
@@ -500,6 +500,67 @@ var _ = Describe("CloudflaredDeployment Controller", func() {
 				It("should ignore the existing deployment", func() {
 					resource := &appsv1.Deployment{}
 					Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+				})
+			})
+
+			Context("and an owned deployment exists", func() {
+				existingDeployment := appsv1.Deployment{}
+
+				BeforeEach(func() {
+					By("Setting existing deployment metadata")
+					existingDeployment.Name = typeNamespacedName.Name
+					existingDeployment.Namespace = typeNamespacedName.Namespace
+
+					By("Configuring the existing deployment spec")
+					existingDeployment.Spec = appsv1.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"testKey": "testValue"},
+						},
+						Template: v1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{"testKey": "testValue"},
+							},
+							Spec: v1.PodSpec{
+								Containers: []v1.Container{{
+									Name:  "testing",
+									Image: defaultImage,
+								}},
+							},
+						},
+					}
+
+					controller := true
+					By("Setting the owner reference")
+					existingDeployment.OwnerReferences = append(existingDeployment.OwnerReferences, metav1.OwnerReference{
+						APIVersion: "v1alpha1",
+						Kind:       "CloudflaredDeployment",
+						Name:       typeNamespacedName.Name,
+						Controller: &controller,
+						UID:        deployment.UID,
+					})
+				})
+
+				JustBeforeEach(func() {
+					By("Creating the existing deployment")
+					Expect(k8sClient.Create(ctx, &existingDeployment)).To(Succeed())
+				})
+
+				AfterEach(func() {
+					resource := &appsv1.Deployment{}
+					if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
+						By("Cleaning up the Deployment")
+						_ = k8sClient.Delete(ctx, resource)
+					}
+
+					By("Clearing the existing deployment")
+					existingDeployment = appsv1.Deployment{}
+				})
+
+				It("should delete the existing deployment", func() {
+					resource := &appsv1.Deployment{}
+					err := k8sClient.Get(ctx, typeNamespacedName, resource)
+
+					Expect(errors.IsNotFound(err)).To(BeTrue())
 				})
 			})
 		})
